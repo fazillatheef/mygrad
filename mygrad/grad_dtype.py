@@ -18,36 +18,63 @@ class gtype:
             return f"Value(data={str(self.data)},children={self.children},op={self.op})"
 
     def __add__(self, other):
+        if not isinstance(other, gtype):
+            other = gtype(other)
         out = gtype(self.data + other.data, (self, other), "+")
 
         def backward():
-            self.grad = out.grad
-            other.grad = out.grad
+            self.grad += out.grad
+            other.grad += out.grad
 
         out.backward = backward
         return out
 
     def __radd__(self, other):
+        if not isinstance(other, gtype):
+            other = gtype(other)
         return self.__add__(other)
 
+    def __sub__(self, other):
+        if not isinstance(other, gtype):
+            other = gtype(other)
+        return self.__add__(gtype(-1 * other.data))
+
+    def __rsub__(self, other):
+        if not isinstance(other, gtype):
+            other = gtype(other)
+        return other.__add__(gtype(-1 * self.data))
+
     def __mul__(self, other):
+        if not isinstance(other, gtype):
+            other = gtype(other)
         out = gtype(self.data * other.data, (self, other), "*")
 
         def backward():
-            self.grad = other.data * out.grad
-            other.grad = self.data * out.grad
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
         out.backward = backward
         return out
 
     def __rmul__(self, other):
         return self.__mul__(other)
 
+    def __pow__(self, other):
+        assert isinstance(other, (int, float)
+                          ), "only supporting int/float powers for now"
+        out = gtype(self.data**other, (self,), f'**{other}')
+
+        def backward():
+            self.grad += (other * self.data**(other-1)) * out.grad
+        out.backward = backward
+
+        return out
+
     def tanh(self):
         exp = math.e ** (2*self.data)
         out = gtype((exp-1)/(exp+1), (self,), "tanh")
 
         def backward():
-            self.grad = (1 - out.data**2) * out.grad
+            self.grad += (1 - out.data**2) * out.grad
         out.backward = backward
         return out
 
